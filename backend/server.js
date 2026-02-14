@@ -150,7 +150,7 @@ app.get('/api/parking-layout', async (req, res) => {
     
   } catch (error) {
     // If ESP is off, we assume sensors are "Free" to avoid stuck "Occupied" states
-    // console.log("⚠️ ESP Disconnected");
+     console.log("⚠️ ESP Disconnected");
   }
 
   // 4. Construct Layout for Frontend
