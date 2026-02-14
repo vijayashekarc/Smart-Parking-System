@@ -89,10 +89,29 @@ app.post('/api/reserve', (req, res) => {
 });
 
 // --- API: CANCEL RESERVATION ---
-app.post('/api/cancel-reserve', (req, res) => {
+app.post('/api/cancel-reserve', async (req, res) => {
   const { slot } = req.body;
+  
+  // 1. Check who reserved it
+  const userPhone = reservations[slot];
+
+  if (userPhone) {
+    // 2. Create a "Cancelled" Log Entry
+    const cancelledLog = new ParkingLog({
+      slot_id: slot,
+      user_phone: userPhone,
+      status: 'Cancelled',
+      entry_time: new Date(), // Time of cancellation
+      exit_time: new Date(),
+      duration_minutes: 0,
+      cost: 0
+    });
+
+    await cancelledLog.save();
+    console.log(`🚫 Reservation Cancelled & Logged for ${userPhone}`);
+  }
+  // 3. Remove from memory
   delete reservations[slot];
-  console.log(`🔓 Reservation cancelled for Slot ${slot}`);
   res.json({ success: true });
 });
 
@@ -109,7 +128,7 @@ app.get('/api/parking-layout', async (req, res) => {
     const response = await axios.get(`${esp_url}/api/status`, { timeout: 2000 });
 
     const raw = response.data;
-    // console.log("📡 FROM ESP:", raw); 
+    console.log("📡 FROM ESP:", raw); 
 
     // 2. FORCE BOOLEAN CONVERSION (Crucial Step)
     s1_status = (String(raw.slot1_occupied) === "true" || raw.slot1_occupied === true || raw.slot1_occupied === 1);
@@ -155,10 +174,12 @@ app.get('/api/parking-layout', async (req, res) => {
 app.get('/api/history', async (req, res) => {
   const { phone } = req.query; 
   
-  const query = { status: 'Completed' };
-  if (phone) query.user_phone = phone; // Filter only my logs
+  // We want ALL logs for this user, regardless of status
+  const query = {}; 
   
-  const history = await ParkingLog.find(query).sort({ exit_time: -1 });
+  if (phone) query.user_phone = phone; 
+  
+  const history = await ParkingLog.find(query).sort({ entry_time: -1 }); // Sort by newest first
   res.json(history);
 });
 
