@@ -35,10 +35,10 @@ const updateParkingLog = async (slotName, isOccupied) => {
     // Check if a user reserved this slot, otherwise "Guest"
     const userPhone = reservations[slotName] || "Guest"; 
     
-    const newLog = new ParkingLog({ 
-      slot_id: slotName, 
-      status: 'Parked',
-      user_phone: userPhone 
+    const newLog = new ParkingLog({
+        slot_id: req.body.slot,
+        phone_number: req.body.phone, // Ensure this maps to the new schema field!
+        status: 'Parked'
     });
     
     await newLog.save();
@@ -123,7 +123,7 @@ app.get('/api/parking-layout', async (req, res) => {
   let s2_status = false;
 
   try {
-    const esp_url = process.env.ESP_IP || "http://192.168.1.105"; 
+    const esp_url = process.env.ESP_IP; 
     // Timeout is important so backend doesn't hang if ESP is off
     const response = await axios.get(`${esp_url}/api/status`, { timeout: 2000 });
 
@@ -215,6 +215,63 @@ app.post('/api/login', async (req, res) => {
   const user = await User.findOne({ phone_number: req.body.phone_number });
   if(user) res.json(user);
   else res.status(404).json({ message: "User not found" });
+});
+
+// --- 1. ADMIN LOGIN ---
+app.post('/api/admin/login', (req, res) => {
+  const { username, password } = req.body;
+  
+  // 👉 YOU CAN CHANGE THESE VALUES HERE
+  if (username === "admin" && password === "admin123") {
+    res.json({ success: true, token: "secure-admin-token" });
+  } else {
+    res.status(401).json({ success: false, message: "Invalid Credentials" });
+  }
+});
+
+// Add this inside backend-admin/server.js
+
+// --- API: GET DETAILED PARKING LOGS WITH USER INFO ---
+app.get('/api/admin/detailed-logs', async (req, res) => {
+  try {
+    // 1. Fetch all parking logs (sorted newest first)
+    const logs = await ParkingLog.find().sort({ entry_time: -1 }).lean();
+    
+    // 2. Fetch all users
+    const users = await User.find().lean();
+    
+    // 3. Create a dictionary for super-fast user lookups by phone number
+    const userDict = {};
+    users.forEach(user => {
+      userDict[user.phone_number] = {
+        name: user.name,
+        vehicle_no: user.vehicle_no
+      };
+    });
+
+    // 4. Merge the data together
+    const combinedData = logs.map(log => {
+      const userInfo = userDict[log.phone_number] || { name: 'Unknown', vehicle_no: 'N/A' };
+      
+      return {
+        _id: log._id,
+        name: userInfo.name,
+        phone_number: log.phone_number,
+        vehicle_no: userInfo.vehicle_no,
+        slot_id: log.slot_id,
+        entry_time: log.entry_time,
+        exit_time: log.exit_time,
+        payment_status: log.payment_status || 'Pending',
+        payment_method: log.payment_method || 'N/A', // Assuming you added this to your DB
+        status: log.status
+      };
+    });
+
+    res.json(combinedData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to fetch detailed logs" });
+  }
 });
 
 app.listen(PORT, () => console.log(`🚀 Backend running on port ${PORT}`));

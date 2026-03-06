@@ -1,82 +1,165 @@
-import { useState, useEffect } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import Webcam from 'react-webcam';
 
 function CCTV() {
   const navigate = useNavigate();
-  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+  const iframeRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(true);
 
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
-    return () => clearInterval(timer);
-  }, []);
+  // --- CONFIGURATION ---
+  // Replace this with your actual YouTube Live Video ID
+  const YOUTUBE_VIDEO_ID = "YOUR_LIVE_VIDEO_ID_HERE"; 
+
+  // --- CUSTOM CONTROLS LOGIC ---
+  const handlePlay = () => {
+    if (iframeRef.current) {
+      // Send play command to YouTube iframe
+      iframeRef.current.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+      setIsPlaying(true);
+    }
+  };
+
+  const handlePause = () => {
+    if (iframeRef.current) {
+      // Send pause command to YouTube iframe
+      iframeRef.current.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+      setIsPlaying(false);
+    }
+  };
 
   return (
     <div style={styles.page}>
+      
       <nav style={styles.navbar}>
-        <div style={{display:'flex', alignItems:'center', gap:'15px'}}>
-          <button style={styles.backBtn} onClick={() => navigate('/dashboard')}>
-            ← Back
-          </button>
-          <h2 style={{ margin: 0 }}>🎥 Security Center</h2>
-        </div>
-        <div style={styles.statusBadge}>
-          <span style={styles.dot}>●</span> LIVE
-        </div>
+        <button onClick={() => navigate('/dashboard')} style={styles.backBtn}>
+           ← Back
+        </button>
+        <h2 style={{color: 'white', margin: 0}}>🎥 Live Security Feed</h2>
       </nav>
 
-      <div style={styles.container}>
-        <div style={styles.videoFrame}>
-          
-          <div style={styles.camHeader}>
-             <span>CAM-01 (Laptop Webcam)</span>
-             <span>{currentTime}</span>
-          </div>
+      {/* --- CCTV SCREEN --- */}
+      <div style={styles.feedContainer}>
+        
+        {/* We use a wrapper with pointerEvents: 'none' so users CANNOT click the YouTube video to open it or see overlays */}
+        <div style={styles.videoWrapper}>
+          <iframe
+            ref={iframeRef}
+            style={styles.iframe}
+            src={`https://www.youtube.com/embed/${YOUTUBE_VIDEO_ID}?enablejsapi=1&autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&showinfo=0&disablekb=1&iv_load_policy=3`}
+            title="CCTV Feed"
+            frameBorder="0"
+            allow="autoplay; encrypted-media"
+            allowFullScreen
+          ></iframe>
+        </div>
 
-          <div style={styles.streamWrapper}>
-            <Webcam
-              audio={false}
-              screenshotFormat="image/jpeg"
-              width="100%"
-              videoConstraints={{ facingMode: "user" }}
-              style={styles.video}
-            />
-            <div style={styles.overlayText}>REC ●</div>
-          </div>
+      </div>
 
-          <div style={styles.controls}>
-            <button style={styles.controlBtn}>📸 Snap</button>
-            <button style={styles.controlBtn}>🔊 Mute</button>
-            <button style={{...styles.controlBtn, color: 'red'}}>🚨 Alarm</button>
-          </div>
-
+      {/* --- CUSTOM CONTROLS --- */}
+      <div style={styles.controlsContainer}>
+        <div style={styles.statusDot}></div>
+        <span style={styles.statusText}>{isPlaying ? "LIVE STREAMING" : "PAUSED"}</span>
+        
+        <div style={styles.buttonGroup}>
+          <button 
+            style={{...styles.controlBtn, opacity: isPlaying ? 0.5 : 1}} 
+            onClick={handlePlay}
+            disabled={isPlaying}
+          >
+            ▶ PLAY
+          </button>
+          <button 
+            style={{...styles.controlBtn, opacity: !isPlaying ? 0.5 : 1}} 
+            onClick={handlePause}
+            disabled={!isPlaying}
+          >
+            ⏸ PAUSE
+          </button>
         </div>
       </div>
+      
+      <div style={styles.info}>
+        <p>Resolution: 480p HQ | Location: Main Gate</p>
+      </div>
+
     </div>
   );
 }
 
 const styles = {
-  page: { padding: '20px', minHeight: '100vh', background: '#1e272e', color: 'white', fontFamily: 'Segoe UI, sans-serif' },
-  navbar: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', background: '#2d3436', padding: '10px 20px', borderRadius: '10px', borderBottom: '3px solid #e74c3c' },
-  backBtn: { background: 'transparent', color: '#bdc3c7', border: '1px solid #7f8c8d', padding: '5px 10px', borderRadius: '5px', cursor: 'pointer' },
-  statusBadge: { display: 'flex', alignItems: 'center', gap: '8px', color: '#e74c3c', fontWeight: 'bold', background: 'rgba(231, 76, 60, 0.1)', padding: '5px 10px', borderRadius: '5px' },
-  dot: { animation: 'pulse 1s infinite' },
+  page: { minHeight: '100vh', background: '#1e272e', display: 'flex', flexDirection: 'column', alignItems: 'center', fontFamily: 'Segoe UI, sans-serif' },
+  navbar: { width: '100%', padding: '20px', background: '#2f3640', display: 'flex', alignItems: 'center', gap: '20px', boxSizing: 'border-box' },
+  backBtn: { background: 'transparent', border: '1px solid white', color: 'white', padding: '8px 15px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' },
   
-  // --- CENTER CONTAINER ---
-  container: { display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '40px' },
+  // Outer Container representing the TV/Monitor
+  feedContainer: { 
+    marginTop: '40px', 
+    border: '8px solid #353b48', 
+    borderRadius: '10px', 
+    background: 'black', 
+    width: '90%', 
+    maxWidth: '720px', 
+    aspectRatio: '16/9', // Keeps the perfect video ratio
+    display:'flex', 
+    justifyContent:'center', 
+    alignItems:'center',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.8)',
+    position: 'relative'
+  },
   
-  // --- RESIZED VIDEO FRAME (Changed 900px -> 600px) ---
-  videoFrame: { width: '100%', maxWidth: '600px', background: 'black', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)', border: '1px solid #444' },
+  // The trick to block YouTube clicks
+  videoWrapper: {
+    width: '100%',
+    height: '100%',
+    pointerEvents: 'none', // BLOCKS ALL CLICKS TO YOUTUBE
+    overflow: 'hidden'
+  },
   
-  camHeader: { padding: '10px', background: '#333', display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: '0.9rem', borderBottom: '1px solid #555' },
+  iframe: { 
+    width: '100%', 
+    height: '100%',
+    // Zoom in slightly to hide YouTube watermarks that sometimes appear on the edges
+    transform: 'scale(1.05)' 
+  },
   
-  streamWrapper: { position: 'relative', width: '100%', background: '#000' },
-  video: { width: '100%', height: 'auto', display: 'block' },
-  overlayText: { position: 'absolute', top: '10px', right: '10px', color: 'red', fontWeight: 'bold', fontFamily: 'monospace', background: 'rgba(0,0,0,0.5)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.8rem' },
+  // Custom Controls UI
+  controlsContainer: {
+    marginTop: '20px',
+    background: '#2f3640',
+    padding: '15px 30px',
+    borderRadius: '30px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '20px',
+    boxShadow: '0 5px 15px rgba(0,0,0,0.3)'
+  },
+  statusDot: { width: '12px', height: '12px', borderRadius: '50%', background: '#e84118', animation: 'blink 1.5s infinite' },
+  statusText: { color: 'white', fontWeight: 'bold', letterSpacing: '2px', width: '150px' },
+  
+  buttonGroup: { display: 'flex', gap: '10px' },
+  controlBtn: { 
+    background: '#718093', 
+    color: 'white', 
+    border: 'none', 
+    padding: '10px 20px', 
+    borderRadius: '5px', 
+    cursor: 'pointer', 
+    fontWeight: 'bold',
+    transition: '0.2s'
+  },
 
-  controls: { padding: '10px', background: '#222', display: 'flex', gap: '10px', justifyContent: 'center', borderTop: '1px solid #444' },
-  controlBtn: { padding: '8px 15px', background: '#444', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', fontSize: '0.8rem' }
+  info: { marginTop: '20px', color: '#7f8fa6', textAlign: 'center', fontSize: '0.9rem' }
 };
+
+// Add blinking animation for the red live dot
+const styleSheet = document.createElement("style");
+styleSheet.innerText = `
+  @keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+  }
+`;
+document.head.appendChild(styleSheet);
 
 export default CCTV;

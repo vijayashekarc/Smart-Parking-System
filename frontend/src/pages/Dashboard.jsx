@@ -5,10 +5,10 @@ import { useNavigate } from 'react-router-dom';
 function Dashboard() {
   const [slots, setSlots] = useState([]);
   const [reservedSlot, setReservedSlot] = useState(null); 
-  const [mySession, setMySession] = useState(null); // Stores just the slot name now
+  const [mySession, setMySession] = useState(null); 
   
   // --- FAKE TIMER STATE ---
-  const [seconds, setSeconds] = useState(0); // Simple counter
+  const [seconds, setSeconds] = useState(0); 
 
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem('user'));
@@ -37,14 +37,13 @@ function Dashboard() {
           const activeLog = res.data.find(log => log.status === 'Parked');
           
           if (activeLog) {
-            // Only update session if it wasn't already set (prevents timer reset on every poll)
             setMySession(prev => {
                 if (!prev) return { slot: activeLog.slot_id }; 
                 return prev;
             });
           } else {
             setMySession(null);
-            setSeconds(0); // Reset timer if no session found
+            setSeconds(0); 
           }
         })
         .catch(err => console.error(err));
@@ -55,14 +54,13 @@ function Dashboard() {
     return () => clearInterval(interval);
   }, [reservedSlot, navigate, user]); 
 
-
   // --- FAKE TIMER LOGIC (Just counts up) ---
   useEffect(() => {
     let interval = null;
     
     if (mySession) {
       interval = setInterval(() => {
-        setSeconds(prev => prev + 1); // Just add 1 second
+        setSeconds(prev => prev + 1); 
       }, 1000);
     } else {
       setSeconds(0);
@@ -78,8 +76,6 @@ function Dashboard() {
     return `${m}:${s}`;
   };
 
-
-  // Helper
   const getSlot = (index) => slots[index] || { name: 'Loading...', occupied: false, type: 'fake' };
 
   const handleLogout = () => { localStorage.removeItem('user'); navigate('/login'); };
@@ -126,9 +122,6 @@ function Dashboard() {
           </h2>
         </div>
         
-
-        
-        
         <div style={styles.navButtons} className="nav-buttons">
           <button style={styles.navBtn} onClick={() => navigate('/logs')}>Logs</button>
           <button style={styles.cctvBtn} onClick={() => navigate('/cctv')}>CCTV</button>
@@ -138,56 +131,61 @@ function Dashboard() {
       </nav>
 
       {/* --- DYNAMIC CENTER SECTION --- */}
-        <div style={{ textAlign: 'center', flex: 1, minWidth: '200px' }}>
-          
-          {/* CASE 1: RESERVATION MODE */}
-          {reservedSlot ? (
-            <div style={styles.navBox}>
-              <span style={{color: 'yellow', fontSize: '1rem'}}>Go to <strong>{reservedSlot}</strong></span>
-              <button style={styles.cancelBtn} onClick={handleCancel}>✕</button>
+      <div style={{ textAlign: 'center', flex: 1, minWidth: '200px' }}>
+        {reservedSlot ? (
+          <div style={styles.navBox}>
+            <span style={{color: 'yellow', fontSize: '1rem'}}>Go to <strong>{reservedSlot}</strong></span>
+            <button style={styles.cancelBtn} onClick={handleCancel}>✕</button>
+          </div>
+        ) : mySession ? (
+          <div style={styles.timerBox}>
+            <span style={{fontSize:'0.8rem', color:'#bdc3c7'}}>PARKED AT {mySession.slot}</span>
+            <div style={{fontSize:'1.5rem', fontWeight:'bold', color:'#2ecc71'}}>
+              ⏱️ {formatTime(seconds)}
             </div>
-          ) 
-          
-          /* CASE 2: ACTIVE SESSION (SHOW FAKE TIMER) */
-          : mySession ? (
-            <div style={styles.timerBox}>
-              <span style={{fontSize:'0.8rem', color:'#bdc3c7'}}>PARKED AT {mySession.slot}</span>
-              <div style={{fontSize:'1.5rem', fontWeight:'bold', color:'#2ecc71'}}>
-                ⏱️ {formatTime(seconds)}
-              </div>
-            </div>
-          )
+          </div>
+        ) : (
+          <button style={styles.parkNowBtn} onClick={handleParkNow}>
+            🚗 PARK NOW
+          </button>
+        )}
+      </div>
 
-          /* CASE 3: DEFAULT (SHOW BUTTON) */
-          : (
-            <button style={styles.parkNowBtn} onClick={handleParkNow}>
-              🚗 PARK NOW
-            </button>
-          )}
-
-        </div>
-        <h1></h1>
-
-      {/* LOT CONTAINER */}
-      <div style={styles.lotContainer} className="lot-container">
+      {/* --- PARKING LOT WRAPPER --- */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '30px' }}>
         
-        <div style={styles.column}>
-          <Slot data={getSlot(0)} highlight={reservedSlot === 'A1'} myCar={mySession?.slot === 'A1'} /> 
-          <Slot data={getSlot(2)} /> 
-          <Slot data={getSlot(4)} /> 
-          <Slot data={getSlot(6)} /> 
+        {/* ENTRY GATE */}
+        <div style={styles.gateEntry}>
+          ⬇ ENTRY GATE ⬇
         </div>
 
-        <div style={styles.road} className="road">
-          <div style={styles.dashedLine}></div>
-          <span style={styles.roadLabel} className="road-label">DRIVE WAY</span>
+        {/* LOT CONTAINER */}
+        <div style={{...styles.lotContainer, margin: '0'}} className="lot-container">
+          
+          <div style={styles.column}>
+            <Slot data={getSlot(0)} highlight={reservedSlot === 'A1'} myCar={mySession?.slot === 'A1'} /> 
+            <Slot data={getSlot(2)} /> 
+            <Slot data={getSlot(4)} /> 
+            <Slot data={getSlot(6)} /> 
+          </div>
+
+          <div style={styles.road} className="road">
+            <div style={styles.dashedLine}></div>
+            <span style={styles.roadLabel} className="road-label">DRIVE WAY</span>
+          </div>
+
+          <div style={styles.column}>
+            <Slot data={getSlot(1)} highlight={reservedSlot === 'A2'} myCar={mySession?.slot === 'A2'} /> 
+            <Slot data={getSlot(3)} /> 
+            <Slot data={getSlot(5)} /> 
+            <Slot data={getSlot(7)} /> 
+          </div>
+
         </div>
 
-        <div style={styles.column}>
-          <Slot data={getSlot(1)} highlight={reservedSlot === 'A2'} myCar={mySession?.slot === 'A2'} /> 
-          <Slot data={getSlot(3)} /> 
-          <Slot data={getSlot(5)} /> 
-          <Slot data={getSlot(7)} /> 
+        {/* EXIT GATE */}
+        <div style={styles.gateExit}>
+          ⬇ EXIT GATE ⬇
         </div>
 
       </div>
@@ -247,6 +245,7 @@ const styles = {
   cctvBtn: { background: '#e74c3c', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' },
   navBtn: { background: '#3498db', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' },
   logoutBtn: { background: '#c0392b', color: 'white', border: 'none', padding: '10px 15px', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold', transition: '0.3s' },
+  
   lotContainer: { display: 'flex', justifyContent: 'center', gap: '40px', background: '#34495e', padding: '40px', borderRadius: '15px', maxWidth: '800px', margin: '0 auto', border: '5px solid #2c3e50' },
   column: { display: 'flex', flexDirection: 'column', gap: '20px' },
   road: { width: '140px', display: 'flex', justifyContent: 'center', alignItems: 'center', borderLeft: '4px dashed #f1c40f', borderRight: '4px dashed #f1c40f', background: '#3a5369', position: 'relative' },
@@ -258,7 +257,35 @@ const styles = {
   parkNowBtn: { background: '#27ae60', color: 'white', border: 'none', padding: '12px 30px', borderRadius: '30px', fontSize: '1.2rem', fontWeight: 'bold', cursor: 'pointer', boxShadow: '0 4px 15px rgba(39, 174, 96, 0.4)' },
   navBox: { background: '#2c3e50', padding: '10px 20px', borderRadius: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '15px', border: '2px solid #f1c40f' },
   cancelBtn: { background: '#e74c3c', color: 'white', border: 'none', padding: '5px 12px', borderRadius: '50%', cursor: 'pointer', fontWeight: 'bold' },
-  timerBox: { background: '#2c3e50', padding: '10px 25px', borderRadius: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '2px solid #2ecc71', boxShadow: '0 0 15px rgba(46, 204, 113, 0.3)' }
+  timerBox: { background: '#2c3e50', padding: '10px 25px', borderRadius: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', border: '2px solid #2ecc71', boxShadow: '0 0 15px rgba(46, 204, 113, 0.3)' },
+
+  // --- NEW GATE STYLES ---
+  gateEntry: {
+    background: '#27ae60',
+    color: 'white',
+    padding: '8px 40px',
+    borderRadius: '10px 10px 0 0',
+    fontWeight: '900',
+    letterSpacing: '3px',
+    textTransform: 'uppercase',
+    marginBottom: '-5px', // Pulls it down slightly to overlap the lot container border
+    zIndex: 10,
+    position: 'relative',
+    boxShadow: '0 -5px 15px rgba(0,0,0,0.1)'
+  },
+  gateExit: {
+    background: '#c0392b',
+    color: 'white',
+    padding: '8px 40px',
+    borderRadius: '0 0 10px 10px',
+    fontWeight: '900',
+    letterSpacing: '3px',
+    textTransform: 'uppercase',
+    marginTop: '-5px', // Pulls it up slightly to overlap the lot container border
+    zIndex: 10,
+    position: 'relative',
+    boxShadow: '0 5px 15px rgba(0,0,0,0.1)'
+  }
 };
 
 export default Dashboard;
